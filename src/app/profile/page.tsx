@@ -1,25 +1,45 @@
 import { ProtectedPage } from '@/components/ProtectedPage';
+import { ProfileTabs } from '@/components/profile/ProfileTabs';
+import { UserInfo } from '@/components/profile/UserInfo';
+import { UserStats } from '@/components/profile/UserStats';
 import { getServerSession } from 'next-auth/next';
-import Image from 'next/image'
+import { prisma } from '@/lib/prisma';
+
+async function getUserData(email: string) {
+  return await prisma.user.findUnique({
+    where: { email },
+    include: {
+      _count: {
+        select: {
+          articles: true,
+          comments: true,
+          likes: true,
+          bookmarks: true,
+        },
+      },
+    },
+  });
+}
 
 export default async function ProfilePage() {
   const session = await getServerSession();
+  const userData = session?.user?.email 
+    ? await getUserData(session.user.email)
+    : null;
 
   return (
     <ProtectedPage>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">个人中心</h1>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center space-x-4">
-            <Image
-              src={session?.user?.image || '/default-avatar.png'}
-              alt="用户头像"
-              className="w-16 h-16 rounded-full"
-            />
-            <div>
-              <h2 className="text-xl font-semibold">{session?.user?.name}</h2>
-              <p className="text-gray-600">{session?.user?.email}</p>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* 左侧个人信息 */}
+          <div className="md:col-span-1">
+            <UserInfo user={userData} />
+            <UserStats stats={userData?._count} />
+          </div>
+          
+          {/* 右侧内容区域 */}
+          <div className="md:col-span-3">
+            <ProfileTabs userId={userData?.id} />
           </div>
         </div>
       </div>
